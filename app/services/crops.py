@@ -13,4 +13,4 @@ def save_crop(crop: np.ndarray, photo_id: str) -> str:
     filename = f"{photo_id}_{uuid.uuid4().hex[:8]}.jpg"
     full_path = os.path.join(settings.face_crops_dir, filename)
     cv2.imwrite(full_path, crop)
-    return filename
+    return full_path
