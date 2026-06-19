@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 def try_incremental_match(
-    conn: psycopg.Connection, embedding: np.ndarray
-) -> tuple[int, float] | None:
-    result = find_best_person_match(conn, embedding)
+    conn: psycopg.Connection, embedding: np.ndarray, project_id: str,
+) -> tuple[str, float] | None:
+    result = find_best_person_match(conn, embedding, project_id)
     if result is None:
         return None
 
@@ -29,8 +29,8 @@ def try_incremental_match(
     return None
 
 
-def cluster_unassigned_pool(conn: psycopg.Connection) -> dict:
-    rows = fetch_unassigned_face_embeddings(conn)
+def cluster_unassigned_pool(conn: psycopg.Connection, project_id: str) -> dict:
+    rows = fetch_unassigned_face_embeddings(conn, project_id)
 
     if len(rows) < settings.hdbscan_min_cluster_size:
         return {
@@ -51,7 +51,7 @@ def cluster_unassigned_pool(conn: psycopg.Connection) -> dict:
     labels = clusterer.fit_predict(embeddings)
 
     label_to_uuid: dict[int, str] = {}
-    face_id_to_cluster: dict[int, str] = {}
+    face_id_to_cluster: dict[str, str] = {}
 
     for face_id, label in zip(face_ids, labels):
         if label == -1:

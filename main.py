@@ -8,8 +8,8 @@ from fastapi import FastAPI, HTTPException
 
 from app.models.face_engine import face_engine
 from app.schemas.api import (
-    ClusterUnassignedResponse, FaceResult, HealthResponse,
-    ProcessPhotoRequest, ProcessPhotoResponse,
+    ClusterUnassignedRequest, ClusterUnassignedResponse, FaceResult,
+    HealthResponse, ProcessPhotoRequest, ProcessPhotoResponse,
 )
 from app.services.clustering import cluster_unassigned_pool, try_incremental_match
 from app.services.crops import save_crop
@@ -48,7 +48,7 @@ async def process_photo(req: ProcessPhotoRequest) -> ProcessPhotoResponse:
         for face in detected_faces:
             crop_path = save_crop(face.crop, req.photo_id)
 
-            match = try_incremental_match(conn, face.embedding)
+            match = try_incremental_match(conn, face.embedding, req.project_id)
             person_id, confidence = (match[0], match[1]) if match else (None, None)
 
             face_id = insert_face(
@@ -84,10 +84,10 @@ async def process_photo(req: ProcessPhotoRequest) -> ProcessPhotoResponse:
 
 
 @app.post("/cluster-unassigned", response_model=ClusterUnassignedResponse)
-async def cluster_unassigned() -> ClusterUnassignedResponse:
+async def cluster_unassigned(req: ClusterUnassignedRequest) -> ClusterUnassignedResponse:
     conn = get_connection()
     try:
-        summary = cluster_unassigned_pool(conn)
+        summary = cluster_unassigned_pool(conn, req.project_id)
     finally:
         conn.close()
 

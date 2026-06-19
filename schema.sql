@@ -1,39 +1,50 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
+CREATE TABLE IF NOT EXISTS projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS people (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS photo_batches (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     total_photos INTEGER NOT NULL,
     processed_photos INTEGER NOT NULL DEFAULT 0,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    status VARCHAR(255) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS photos (
-    id BIGSERIAL PRIMARY KEY,
-    batch_id BIGINT REFERENCES photo_batches(id) ON DELETE SET NULL,
-    path VARCHAR(1024) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_id UUID REFERENCES photo_batches(id) ON DELETE SET NULL,
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    path VARCHAR(255) NOT NULL,
+    status VARCHAR(255) NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS faces (
-    id BIGSERIAL PRIMARY KEY,
-    photo_id BIGINT NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
-    person_id BIGINT REFERENCES people(id) ON DELETE SET NULL,
-    cluster_id VARCHAR(64),
-    bbox JSONB NOT NULL,
-    crop_path VARCHAR(1024) NOT NULL,
-    det_score FLOAT NOT NULL,
-    embedding VECTOR(512) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    photo_id UUID NOT NULL REFERENCES photos(id) ON DELETE CASCADE,
+    person_id UUID REFERENCES people(id) ON DELETE SET NULL,
+    cluster_id VARCHAR(255),
+    bbox JSON NOT NULL,
+    crop_path VARCHAR(255) NOT NULL,
+    det_score DOUBLE PRECISION,
+    embedding VECTOR(512),
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now()
 );
@@ -45,8 +56,8 @@ CREATE INDEX IF NOT EXISTS faces_cluster_id_idx ON faces (cluster_id);
 CREATE INDEX IF NOT EXISTS faces_photo_id_idx ON faces (photo_id);
 
 CREATE TABLE IF NOT EXISTS person_centroids (
-    person_id BIGINT PRIMARY KEY REFERENCES people(id) ON DELETE CASCADE,
-    centroid VECTOR(512) NOT NULL,
+    person_id UUID PRIMARY KEY REFERENCES people(id) ON DELETE CASCADE,
+    centroid VECTOR(512),
     updated_at TIMESTAMP DEFAULT now()
 );
 

@@ -17,13 +17,13 @@ def get_connection() -> psycopg.Connection:
 
 def insert_face(
     conn: psycopg.Connection,
-    photo_id: int,
+    photo_id: str,
     bbox: list[int],
     crop_path: str,
     det_score: float,
     embedding: np.ndarray,
-    person_id: int | None,
-) -> int:
+    person_id: str | None,
+) -> str:
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -35,41 +35,52 @@ def insert_face(
         )
         row = cur.fetchone()
         conn.commit()
-        return row[0]
+        return str(row[0])
 
 
 def find_best_person_match(
-    conn: psycopg.Connection, embedding: np.ndarray
-) -> tuple[int, float] | None:
+    conn: psycopg.Connection, embedding: np.ndarray, project_id: str,
+) -> tuple[str, float] | None:
     """
-    Compare a new face embedding against each Person's centroid using
-    pgvector cosine distance. Returns (person_id, similarity) or None.
+    Compare a new face embedding against each Person's centroid within the
+    given project. Returns (person_id, similarity) or None.
     """
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT person_id, 1 - (centroid <=> %s) AS similarity
-            FROM person_centroids
-            ORDER BY centroid <=> %s
+            SELECT pc.person_id, 1 - (pc.centroid <=> %s) AS similarity
+            FROM person_centroids pc
+            JOIN people p ON p.id = pc.person_id
+            WHERE p.project_id = %s
+              AND pc.centroid IS NOT NULL
+            ORDER BY pc.centroid <=> %s
             LIMIT 1
             """,
-            (embedding, embedding),
+            (embedding, project_id, embedding),
         )
         row = cur.fetchone()
         if row is None:
             return None
-        return row[0], float(row[1])
+        return str(row[0]), float(row[1])
 
 
-def recompute_person_centroid(conn: psycopg.Connection, person_id: int) -> None:
+def recompute_person_centroid(conn: psycopg.Connection, person_id: str) -> None:
     """
     Recompute and upsert a person's centroid (mean embedding of all their
     tagged faces). Call whenever a face is newly tagged to a person.
     """
     with conn.cursor() as cur:
-        cur.execute("SELECT embedding FROM faces WHERE person_id = %s", (person_id,))
+        cur.execute(
+            "SELECT embedding FROM faces WHERE person_id = %s AND embedding IS NOT NULL",
+            (person_id,),
+        )
         embeddings = [row[0] for row in cur.fetchall()]
         if not embeddings:
+            cur.execute(
+                "DELETE FROM person_centroids WHERE person_id = %s",
+                (person_id,),
+            )
+            conn.commit()
             return
         centroid = np.mean(np.stack(embeddings), axis=0)
         centroid = centroid / np.linalg.norm(centroid)
@@ -86,16 +97,28 @@ def recompute_person_centroid(conn: psycopg.Connection, person_id: int) -> None:
         conn.commit()
 
 
-def fetch_unassigned_face_embeddings(conn: psycopg.Connection) -> list[tuple[int, np.ndarray]]:
-    """Fetch (face_id, embedding) for every face with no person_id and no cluster_id."""
+def fetch_unassigned_face_embeddings(
+    conn: psycopg.Connection, project_id: str,
+) -> list[tuple[str, np.ndarray]]:
+    """Fetch (face_id, embedding) for every face with no person_id and no
+    cluster_id, within the given project."""
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT id, embedding FROM faces WHERE person_id IS NULL AND cluster_id IS NULL"
+            """
+            SELECT f.id, f.embedding
+            FROM faces f
+            JOIN photos p ON p.id = f.photo_id
+            WHERE f.person_id IS NULL
+              AND f.cluster_id IS NULL
+              AND f.embedding IS NOT NULL
+              AND p.project_id = %s
+            """,
+            (project_id,),
         )
-        return [(row[0], row[1]) for row in cur.fetchall()]
+        return [(str(row[0]), row[1]) for row in cur.fetchall()]
 
 
-def write_cluster_ids(conn: psycopg.Connection, face_id_to_cluster: dict[int, str]) -> None:
+def write_cluster_ids(conn: psycopg.Connection, face_id_to_cluster: dict[str, str]) -> None:
     with conn.cursor() as cur:
         for face_id, cluster_id in face_id_to_cluster.items():
             cur.execute(
