@@ -2,6 +2,8 @@
 Database access for faces/people/photos tables. Schema is owned by Laravel
 migrations (see schema.sql) — this service only reads/writes rows.
 """
+import uuid
+
 import numpy as np
 import psycopg
 from pgvector.psycopg import register_vector
@@ -24,14 +26,15 @@ def insert_face(
     embedding: np.ndarray,
     person_id: str | None,
 ) -> str:
+    face_id = str(uuid.uuid4())
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO faces (photo_id, bbox, crop_path, det_score, embedding, person_id, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, now(), now())
+            INSERT INTO faces (id, photo_id, bbox, crop_path, det_score, embedding, person_id, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, now(), now())
             RETURNING id
             """,
-            (photo_id, psycopg.types.json.Json(bbox), crop_path, det_score, embedding, person_id),
+            (face_id, photo_id, psycopg.types.json.Json(bbox), crop_path, det_score, embedding, person_id),
         )
         row = cur.fetchone()
         conn.commit()

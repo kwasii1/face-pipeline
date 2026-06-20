@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # --- Database ---
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/faces_db"
+    database_url: str = "postgresql://postgres:password@localhost:5432/face_pipeline"
 
     # --- InsightFace model ---
     insightface_model_name: str = "buffalo_l"
