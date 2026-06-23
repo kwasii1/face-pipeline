@@ -59,6 +59,7 @@ async def process_photo(req: ProcessPhotoRequest) -> ProcessPhotoResponse:
                 det_score=face.det_score,
                 embedding=face.embedding,
                 person_id=person_id,
+                blur_score=face.blur_score,
             )
 
             if person_id is not None:

@@ -10,6 +10,7 @@ import numpy as np
 
 from app.config import settings
 from app.models.face_engine import face_engine
+from app.services.quality import compute_blur_score
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class DetectedFace:
     det_score: float
     embedding: np.ndarray
     crop: np.ndarray
+    blur_score: float = 0.0
 
 
 def detect_and_embed(image_path: str) -> tuple[list[DetectedFace], int]:
@@ -50,12 +52,14 @@ def detect_and_embed(image_path: str) -> tuple[list[DetectedFace], int]:
             embedding = embedding / norm
 
         crop = image[max(0, y1):y2, max(0, x1):x2]
+        blur_score = compute_blur_score(crop)
 
         kept.append(DetectedFace(
             bbox=[int(x1), int(y1), int(w), int(h)],
             det_score=det_score,
             embedding=embedding,
             crop=crop,
+            blur_score=blur_score,
         ))
 
     return kept, filtered_out

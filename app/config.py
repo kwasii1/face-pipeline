@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     # --- Detection filtering ---
     min_detection_score: float = 0.5
     min_face_size_px: int = 40
+    min_relative_face_size: float = 0.015
 
     # --- Incremental matching ---
     match_confidence_threshold: float = 0.62
