@@ -1,12 +1,16 @@
 # Stage 1: Build dependencies and pre-download InsightFace models
 FROM python:3.12-slim AS builder
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-
 RUN uv sync --frozen --no-dev
 
 RUN uv run python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider']).prepare(ctx_id=0, det_size=(640, 640))"
