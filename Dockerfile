@@ -32,6 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd -g 9999 shared \
     && useradd --create-home --shell /bin/bash -G shared appuser
 
+ENV HOME=/home/appuser
+
 WORKDIR /app
 
 ENV PATH="/app/.venv/bin:$PATH"
